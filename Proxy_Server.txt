@@ -1,0 +1,79 @@
+Vérifier installation/version Squid : dpkg -l | grep squid
+
+Installer : sudo apt-get install squid3
+
+/etc/squid3/squid.conf
+
+--- TAGs squid.conf ---
+
+http_port N°port (e.g. http_port 8080)
+
+acl nom_reseau src ip_address/subnet_mask (e.g. acl reseau_local src 192.168.1.0/24)
+
+http_access allow nom_reseau (e.g. http_access allow reseau_local)
+
+http_access deny all
+
+-----------------------
+
+sudo service squid3 restart
+
+Firefox > Préférences > Avancé > Réseau > Paramètres > Utiliser proxy manuel
+Renseigner champ port et adresse ip serveur
+
+-----------------------
+
+Créer squid_passwd dans /etc/squid3 : sudo touch squid_passwd
+
+Installer htpasswd : sudo apt-get install mini-httpd
+					  apache2-utils
+
+Définition doublet user/passwd
+
+htpasswd -c squid_passwd username > entrer passwd : passwd
+
+
+TAG auth_param dans squid.conf
+
+auth_param basic_program /usr/etc/squid3/squid_passwd
+
+
+Ce TAG acl doit se trouver en dernier
+
+acl auth_reseau_local proxy_auth REQUIRED
+
+
+Remplacer http_access par celui-ci :
+
+http_access allow reseau_local auth_reseau_local
+
+-------------------------
+
+Fichier squid.conf final :
+
+http_port N°port (e.g. http_port 8080)
+
+http_access allow reseau_local auth_reseau_local
+
+acl nom_reseau src ip_address/subnet_mask (e.g. acl reseau_local src 192.168.1.0/24)
+
+auth_param basic_program /usr/etc/squid3/squid_passwd
+
+acl auth_reseau_local proxy_auth REQUIRED
+
+authenticate_ttl 3 hours
+
+cache_mem 4 MB
+
+cache_dir ufs (/var/spool/squid3 --> path optionnel) 32 8 64
+
+http_access deny all
+
+-------------------------
+
+Cette ligne indique a la machine d'intercepter toutes les requêtes sur un port 80 , et de les rediriger vers le proxy.
+iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 8080
+
+
+Cette ligne provoque le même effet que la ligne précédente , a la différence qu'elle restreint son action uniquement au réseau local. 
+iptables -t nat -A PREROUTING -i eth0 -s 192.168.6.0/24 -p tcp --dport 80 -j REDIRECT --to-port 3128
